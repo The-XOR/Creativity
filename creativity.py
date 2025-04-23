@@ -73,7 +73,12 @@ def coloraLed():
             GPIO.output(LED_ROSSO, GPIO.HIGH if random.randint(0,1) == 1 else GPIO.LOW)
 
 def loadimg(n):
-    img = Image.open("Tarot/"+str(n)+".jpg").convert("RGB")
+    if n <= 21:
+        img = Image.open("Tarot/"+str(n)+".jpg").convert("RGB")
+    else:
+        n= random.randint(0,1)
+        img = Image.open("logo"+str(n)+".jpg").convert("RGB")
+
     img = img.rotate(-90, expand=True)
     return img.resize((display.width, display.height), Image.BICUBIC)
 
@@ -88,12 +93,9 @@ def showSentence(tarot, oblique):
     global curSentence, curTarot
     if tarot != curTarot:
         curTarot = tarot
-        if tarot >= 22:
-            GPIO.output(BACKLIGHT_PIN, GPIO.LOW)
-        else:
-            img = loadimg(tarot)
-            display.display(img)
-            GPIO.output(BACKLIGHT_PIN, GPIO.HIGH)
+        img = loadimg(tarot)
+        display.display(img)
+        GPIO.output(BACKLIGHT_PIN, GPIO.HIGH)
 
     if curSentence != oblique:
         curSentence = oblique
@@ -123,7 +125,7 @@ def show_message_with_callback(device, message, font=proportional(SINCLAIR_FONT)
     for x in range(0, text_width-device.width):
         virt.set_position((x, 0))
         if callback:
-            callback(x)
+            callback()
         if key_pressed:
             break
         if scroll_delay > 0:
@@ -204,8 +206,8 @@ def thexor(speed=0.01):
 def blankSentence():
     showSentence(22, len(lines))
 
-blankSentence()
 try:
+    blankSentence()
     while True:
         if key_pressed:
            key_pressed = False
