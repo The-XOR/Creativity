@@ -1,0 +1,12 @@
+[Unit]
+Description=Systemd service for Creativity
+After=default.target
+
+[Service]
+Restart=always
+Type=simple
+ExecStart=/bin/sh /home/pi/Creativity/Installation/creastart.sh
+WorkingDirectory=/home/pi/Creativity
+
+[Install]
+WantedBy=default.target
