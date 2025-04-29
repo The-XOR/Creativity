@@ -1,7 +1,7 @@
 #/bin/bash
 echo "Installing some modules..."
 sudo apt update
-sudo apt-get install python3-dev  libjpeg-dev zlib1g-dev
+sudo apt-get install python3-dev python3-pil libjpeg-dev zlib1g-dev
 echo "Python environment construction time..."
 pushd /home/pi/Creativity
 python -m venv /home/pi/Creativity/creaenv
