@@ -1,0 +1,24 @@
+#!/bin/sh
+# /etc/init.d/S99creativity
+# Starts the creativity.py script on boot
+
+case "$1" in
+  start)
+    echo "Starting creativity script..."
+    cd /root && ./creativity &
+    ;;
+  stop)
+    echo "Stopping creativity script..."
+    killall creativity
+    ;;
+  restart)
+    $0 stop
+    $0 start
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart}"
+    exit 1
+esac
+
+exit 0
+

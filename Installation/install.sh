@@ -27,3 +27,4 @@ sudo systemctl enable creativity.service
 sudo systemctl start creativity.service
 sudo systemctl daemon-reload
 sudo systemctl status creativity.service
+echo "run raspi-config to enable SPI Interface"

@@ -23,6 +23,7 @@ Connessioni di connessione:
 """
 
 import RPi.GPIO as GPIO
+import os
 import time
 import random
 from PIL import Image, ImageDraw
@@ -57,6 +58,7 @@ lines = text_file.read().split('\n')
 text_file.close()
 lines = [line for line in lines if line.strip()]
 key_pressed = False
+poweroff = False
 curSentence = curTarot = -1
 blankSentence = True
 bLed = False
@@ -117,10 +119,20 @@ def loadimg(n):
     return img.resize((display.width, display.height), Image.BICUBIC)
 
 def checkKey():
-    global key_pressed
+    global key_pressed,poweroff
     blinkLed()
     if GPIO.input(DICE_PIN) == 0:
         key_pressed = True
+        starttime = time.time()
+        while GPIO.input(DICE_PIN) == 0:
+            if time.time() - starttime > 2:
+                break
+        key_pressed = True
+        if time.time() - starttime > 2:
+            GPIO.output(LED_BLU, GPIO.LOW)
+            GPIO.output(LED_VERDE, GPIO.HIGH)
+            GPIO.output(LED_ROSSO, GPIO.LOW)
+            poweroff = True
     return key_pressed
 
 def showSentence(tarot, oblique):
@@ -249,7 +261,7 @@ def thexor(speed=0.01):
     return False
 
 try:
-    while True:
+    while poweroff == False:
         if key_pressed:
            key_pressed = False
            if blankSentence:
@@ -260,6 +272,9 @@ try:
               blankSentence = True
         repeatSentence()
         time.sleep(0.2)
+
+    show_message_with_callback(d7219, "Ciao", callback=None)
+    os.system("sudo shutdown -h now")
 
 finally:
     GPIO.cleanup()

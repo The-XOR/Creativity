@@ -1,5 +1,4 @@
 #/bin/bash
-echo "Installing some modules..."
 cd /home/pi/Creativity
 if [ -e /home/pi/Creativity/dist ]; then
     rm -rf /home/pi/Creativity/dist
@@ -10,6 +9,7 @@ activate() {
 . /home/pi/Creativity/creaenv/bin/activate
 }
 activate
-pyinstaller --collect-all creativity.py --onefile creativity.py
+echo "Compiling the program..."
+pyinstaller --collect-all creativity.py --onedir creativity.py
 cd /home/pi/Creativity/dist
 ls
