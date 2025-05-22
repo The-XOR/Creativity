@@ -132,20 +132,22 @@ rm S01syslogd S02klogd S40network
 ```
 
 3) Nella cartella /root della partizione principale, e' ora di copiare il programma & affini:
-- copiare i file logo0.jpg e logo1.jpg
+- copiare il file logo.jpg
 - copiare le cartelle Oblique e Tarot
 - copire il contenuto salvato del programma compilato alcuni (parecchi) step piu' sopra
 
 4) Aprire una bottiglia di ottimo rum e festeggiare, svuotandola. Abbiamo finito.
 
 # Funzionamento
-Non e' che sia tutta sta complicazione...
-Ad ogni pressione del tasto ci si alterna tra la visualizzazione del logo e da una splendida animazione
-(utili per non essere influenzati da fattori esterni, per seguire la propria via interiore che sempre)
+Ad ogni pressione del tasto ci si alterna tra la visualizzazione del logo e di una splendida animazione
+(per non essere influenzati da fattori esterni, per seguire la propria via interiore...)
 
  - e -
 
-tra la visualizzazione di una frase su cui meditare e di un Arcano maggiore che male non fa.
+tra la visualizzazione di una frase su cui meditare e di un Arcano Taroccato, che male non fa.
 
-Tenendo premuto il pulsante per piu' di 2 secondi si spegne tutto l'ambaradan.
+Tenendo premuto il pulsante almeno di 2 secondi ci si alterna tra queste due modalita' e a gradire si cambia
+anche mazzo di Tarocchi.
+
+Infine, resistento col pulsante premuto per 5 secondi si spegne tutto l'ambaradan.
 Enough said, come cantavano i Devo...

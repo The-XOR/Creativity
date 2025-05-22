@@ -4,6 +4,7 @@ Connessioni di connessione:
    Led Rosso (570 ohm) GPIO 13
    Led Verde (570 ohm) GPIO 19
    Led Blu (570 ohm) GPIO 26
+   Retroilluminazione ST7735 (330 ohm) GPIO 06
    Display ST7735:
       Pin 1 = GND
       Pin 2 = 3.3V
@@ -23,6 +24,7 @@ Connessioni di connessione:
 """
 
 import RPi.GPIO as GPIO
+import enum
 import os
 import time
 import random
@@ -35,124 +37,101 @@ from luma.core.render            import canvas
 from luma.core.legacy.font import proportional, CP437_FONT, TINY_FONT, SINCLAIR_FONT, LCD_FONT
 from luma.core.virtual import viewport
 
+KEYSTATE = enum.Enum('KEYSTATE', 'NO_KEY KEY_PRESSED BLANK_KEY POWER_KEY')
+LEDCOLOR = enum.Enum('LEDCOLOR', 'NO RED GREEN BLU')
+DICE_PIN = 4
+LED_BLU = 26
+LED_VERDE = 19
+LED_ROSSO = 13
+RETROILLUMINAZIONE = 21
+
 GPIO.setmode(GPIO.BCM)
+GPIO.setup(RETROILLUMINAZIONE, GPIO.OUT, initial=GPIO.HIGH)  # logica attenuante invertita
+GPIO.setup(LED_BLU, GPIO.OUT, initial=GPIO.LOW)
+GPIO.setup(LED_VERDE, GPIO.OUT, initial=GPIO.LOW)
+GPIO.setup(LED_ROSSO, GPIO.OUT, initial=GPIO.LOW)
+GPIO.setup(DICE_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
 st7735spi = spi(port=0, device=0, gpio_DC=25, gpio_RST=24,bus_speed_hz=24000000, transfer_size=4096)
 display = st7735(serial_interface=st7735spi, width=160, height=128, rotation=0, bgr=False)
 
 st7219spi = spi(port=0, device=1, gpio=noop())  #device 1 = CE1
 d7219 = max7219(st7219spi,  cascaded=4, block_orientation=90, rotate=2, blocks_arranged_in_reverse_order=1)
 d7219.contrast(1)
+d7219.clear()
 
-DICE_PIN = 4
-LED_BLU = 26
-LED_VERDE = 19
-LED_ROSSO = 13
-
-GPIO.setup(LED_BLU, GPIO.OUT, initial=GPIO.LOW)
-GPIO.setup(LED_VERDE, GPIO.OUT, initial=GPIO.LOW)
-GPIO.setup(LED_ROSSO, GPIO.OUT, initial=GPIO.LOW)
-GPIO.setup(DICE_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
+available_decks = os.listdir('Tarot/')
+curFolder = random.randint(0, len(available_decks)-1)
 text_file = open("Oblique/obliqui.txt", "r")
 lines = text_file.read().split('\n')
 text_file.close()
 lines = [line for line in lines if line.strip()]
-key_pressed = False
-poweroff = False
-curSentence = curTarot = -1
-blankSentence = True
-bLed = False
-bTime = 0
-logo_time = 0
-logo0 = False
-vr = vg = vb = 0
+
+ledTime = 0
+key_pressed = KEYSTATE.NO_KEY
+curSentence = -1
+GPIO.setup(RETROILLUMINAZIONE, GPIO.OUT, initial=GPIO.LOW)
+
+def showImage(name):
+    img = Image.open(name).convert("RGB")
+    img = img.rotate(-90, expand=True)
+    display.display(img.resize((display.width, display.height), Image.BICUBIC))
+
+def borisBlank():
+    global blankSentence, TAROT_LIST, curFolder
+    blankSentence = True
+    ledOff()
+    showImage("logo.jpg")
+    curFolder = curFolder + 1
+    if curFolder >= len(available_decks):
+        curFolder = 0
+    TAROT_LIST = os.listdir('Tarot/' + available_decks[curFolder])
 
 def coloraLed():
-    global bTime,vr,vb,vg
-    bTime = 0
-    vr = random.randint(0,1)
-    vg = random.randint(0,1)
-    vb = random.randint(0,1)
-    GPIO.output(LED_BLU, GPIO.HIGH if vb == 1 else GPIO.LOW)
-    GPIO.output(LED_VERDE, GPIO.HIGH if vg == 1 else GPIO.LOW)
-    GPIO.output(LED_ROSSO, GPIO.HIGH if vr == 1 else GPIO.LOW)
-
-def blinkLed():
-    global bLed, bTime,vb,vg,vr
-    if blankSentence:
-       return
-
-    now = time.time()
-    if now - bTime >= 1:
-       bTime = now
-       if bLed:
-          bLed = False
-          GPIO.output(LED_BLU, GPIO.LOW)
-          GPIO.output(LED_VERDE, GPIO.LOW)
-          GPIO.output(LED_ROSSO, GPIO.LOW)
-       else:
-          bLed = True
-          GPIO.output(LED_BLU, GPIO.HIGH if vb == 1 else GPIO.LOW)
-          GPIO.output(LED_VERDE, GPIO.HIGH if vg == 1 else GPIO.LOW)
-          GPIO.output(LED_ROSSO, GPIO.HIGH if vr == 1 else GPIO.LOW)
-
-def showLogo():
-    global logo0, logo_time
-    now = time.time()
-    if now - logo_time >= 5:
-       logo_time = now
-       if logo0:
-          f = "logo0.jpg"
-          logo0 = False
-       else:
-          f = "logo1.jpg"
-          logo0 = True
-       img = Image.open(f).convert("RGB")
-       img = img.rotate(-90, expand=True)
-       display.display(img.resize((display.width, display.height), Image.BICUBIC))
-    else:
-       coloraLed()
-
-def loadimg(n):
-    img = Image.open("Tarot/"+str(n)+".jpg").convert("RGB")
-    img = img.rotate(-90, expand=True)
-    return img.resize((display.width, display.height), Image.BICUBIC)
+    global ledTime
+    if blankSentence == False:
+        if time.time() - ledTime > 5:
+            ledTime = time.time()
+            vr = random.randint(0,1)
+            vg = random.randint(0,1)
+            vb = random.randint(0,1)
+            GPIO.output(LED_BLU, GPIO.HIGH if vb == 1 else GPIO.LOW)
+            GPIO.output(LED_VERDE, GPIO.HIGH if vg == 1 else GPIO.LOW)
+            GPIO.output(LED_ROSSO, GPIO.HIGH if vr == 1 else GPIO.LOW)
 
 def checkKey():
-    global key_pressed,poweroff
-    blinkLed()
+    global key_pressed
     if GPIO.input(DICE_PIN) == 0:
-        key_pressed = True
+        ledOff(LEDCOLOR.BLU)
+        key_pressed = KEYSTATE.KEY_PRESSED
         starttime = time.time()
         while GPIO.input(DICE_PIN) == 0:
             if time.time() - starttime > 2:
+                ledOff(LEDCOLOR.GREEN)
+                key_pressed = KEYSTATE.BLANK_KEY
+
+            if time.time() - starttime > 5: # shutdown time
+                ledOff(LEDCOLOR.RED)
+                key_pressed = KEYSTATE.POWER_KEY
+                time.sleep(1)
                 break
-        key_pressed = True
-        if time.time() - starttime > 2:
-            GPIO.output(LED_BLU, GPIO.LOW)
-            GPIO.output(LED_VERDE, GPIO.HIGH)
-            GPIO.output(LED_ROSSO, GPIO.LOW)
-            poweroff = True
+            pass
     return key_pressed
 
-def showSentence(tarot, oblique):
-    global curSentence, curTarot, blankSentence
-
-    blankSentence = False
-    if tarot != curTarot:
-        curTarot = tarot
-        img = loadimg(tarot)
-        display.display(img)
-
+def showSentence(oblique):
+    global curSentence
     if curSentence != oblique:
         curSentence = oblique
         msg = lines[oblique]
         show_message_with_callback(d7219, "       " + msg, callback=checkKey)
 
+def showTarot(tarot):
+    t = 'Tarot/' + available_decks[curFolder] + '/' + tarot
+    showImage(t)
+
 def repeatSentence():
-    global curSentence, blankSentence
     if blankSentence:
-        thexor()
+        thexor(0.003)
     else:
         show_message_with_callback(d7219, "       " + lines[curSentence], callback=checkKey)
 
@@ -161,7 +140,6 @@ def print_message(device, message, font=proportional(SINCLAIR_FONT), fill="white
         text(draw, (0, 0), message, font=font, fill=fill)
 
 def show_message_with_callback(device, message, font=proportional(SINCLAIR_FONT), fill="white", scroll_delay=0.01, callback=None):
-    global key_pressed
     message = message + "              "
     text_width = sum(len(font[ord(c)]) for c in message)
     virt = viewport(device, width=text_width, height=device.height)
@@ -171,9 +149,9 @@ def show_message_with_callback(device, message, font=proportional(SINCLAIR_FONT)
     for x in range(0, text_width-device.width):
         virt.set_position((x, 0))
         if callback:
-            callback()
-        if key_pressed:
-            break
+            if callback() != KEYSTATE.NO_KEY:
+                break
+
         if scroll_delay > 0:
             time.sleep(scroll_delay)
 
@@ -187,9 +165,8 @@ def animotion(buf, draw, destX, destY, speed=0.1, reverse = False):
                 time.sleep(speed)
             curY = curY + 1
             set_pixel(d7219, buf, draw, curX, curY, True)
-            if checkKey():
+            if checkKey() != KEYSTATE.NO_KEY:
                 return True
-            showLogo()
 
         while curX < 31:
             set_pixel(d7219, buf, draw, curX, curY, False)
@@ -197,9 +174,8 @@ def animotion(buf, draw, destX, destY, speed=0.1, reverse = False):
                 time.sleep(speed)
             curX = curX + 1
             set_pixel(d7219, buf, draw, curX, curY, True)
-            if checkKey():
+            if checkKey() != KEYSTATE.NO_KEY:
                 return True
-            showLogo()
 
         set_pixel(d7219, buf, draw, curX, curY, False)
 
@@ -212,9 +188,8 @@ def animotion(buf, draw, destX, destY, speed=0.1, reverse = False):
                 time.sleep(speed)
             set_pixel(d7219, buf, draw, curX, curY, False)
             curX = curX - 1
-            if checkKey():
+            if checkKey() != KEYSTATE.NO_KEY:
                 return True
-            showLogo()
 
         while curY > destY:
             set_pixel(d7219, buf, draw, curX, curY, True)
@@ -222,9 +197,8 @@ def animotion(buf, draw, destX, destY, speed=0.1, reverse = False):
                 time.sleep(speed)
             set_pixel(d7219, buf, draw, curX, curY, False)
             curY = curY - 1
-            if checkKey():
+            if checkKey() != KEYSTATE.NO_KEY:
                 return True
-            showLogo()
 
         set_pixel(d7219, buf, draw, curX, curY, True)
     return False
@@ -233,7 +207,7 @@ def set_pixel(device, buf, draw, x, y, on=True):
     draw.point((x, y), fill="white" if on else "black")
     device.display(buf)    # instantly pushes the whole image
 
-def thexor(speed=0.01):
+def thexor(speed=0.1):
     buf = Image.new('1', (d7219.width, d7219.height))
     draw = ImageDraw.Draw(buf)
 
@@ -250,7 +224,7 @@ def thexor(speed=0.01):
 
     now = time.time()
     while time.time() - now < 5:
-        if checkKey():
+        if checkKey() != KEYSTATE.NO_KEY:
            return True
 
     coords.reverse()
@@ -260,22 +234,38 @@ def thexor(speed=0.01):
 
     return False
 
+def ledOff(clr = LEDCOLOR.NO):
+    global ledTime
+    ledTime = 0
+    GPIO.output(LED_BLU, GPIO.HIGH if clr == LEDCOLOR.BLU  else GPIO.LOW)
+    GPIO.output(LED_ROSSO, GPIO.HIGH if clr == LEDCOLOR.RED  else GPIO.LOW)
+    GPIO.output(LED_VERDE, GPIO.HIGH if clr == LEDCOLOR.GREEN  else GPIO.LOW)
+
+def spegni():
+    d7219.clear()
+    GPIO.output(RETROILLUMINAZIONE, GPIO.HIGH)
+    ledOff()
+
+borisBlank()
 try:
-    while poweroff == False:
-        if key_pressed:
-           key_pressed = False
-           if blankSentence:
-              blankSentence = False
-              random.seed()
-              showSentence(random.randint(0, 21), random.randint(0, len(lines)-1))
-           else:
-              blankSentence = True
+    while key_pressed != KEYSTATE.POWER_KEY:
+        if key_pressed == KEYSTATE.KEY_PRESSED:
+            blankSentence = False
+            showTarot(random.choice(TAROT_LIST))
+            showSentence(random.randint(0, len(lines)-1))
+
+        elif key_pressed == KEYSTATE.BLANK_KEY:
+            borisBlank()
+
+        key_pressed = KEYSTATE.NO_KEY
+        coloraLed()
         repeatSentence()
         time.sleep(0.2)
 
-    show_message_with_callback(d7219, "Ciao", callback=None)
+    spegni()
     os.system("sudo shutdown -h now")
 
 finally:
+    spegni()
     GPIO.cleanup()
     print("Clean")
