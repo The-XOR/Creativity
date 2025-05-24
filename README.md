@@ -132,6 +132,7 @@ rm S01syslogd S02klogd S40network
 ```
 
 3) Nella cartella /root della partizione principale, e' ora di copiare il programma & affini:
+- copiare il file config.json
 - copiare il file logo.jpg
 - copiare le cartelle Oblique e Tarot
 - copire il contenuto salvato del programma compilato alcuni (parecchi) step piu' sopra

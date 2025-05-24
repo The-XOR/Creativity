@@ -28,6 +28,7 @@ import enum
 import os
 import time
 import random
+import json
 from PIL import Image, ImageDraw
 from luma.lcd.device import st7735
 from luma.core.interface.serial import spi, noop
@@ -45,6 +46,9 @@ LED_VERDE = 19
 LED_ROSSO = 13
 RETROILLUMINAZIONE = 21
 
+with open('config.json', 'r') as f:
+    configurazione = json.load(f)
+
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(RETROILLUMINAZIONE, GPIO.OUT, initial=GPIO.HIGH)  # logica attenuante invertita
 GPIO.setup(LED_BLU, GPIO.OUT, initial=GPIO.LOW)
@@ -57,7 +61,7 @@ display = st7735(serial_interface=st7735spi, width=160, height=128, rotation=0, 
 
 st7219spi = spi(port=0, device=1, gpio=noop())  #device 1 = CE1
 d7219 = max7219(st7219spi,  cascaded=4, block_orientation=90, rotate=2, blocks_arranged_in_reverse_order=1)
-d7219.contrast(1)
+d7219.contrast(configurazione["contrasto"])
 d7219.clear()
 
 available_decks = os.listdir('Tarot/')
@@ -131,7 +135,7 @@ def showTarot(tarot):
 
 def repeatSentence():
     if blankSentence:
-        thexor(0.003)
+        thexor()
     else:
         show_message_with_callback(d7219, "       " + lines[curSentence], callback=checkKey)
 
@@ -139,7 +143,7 @@ def print_message(device, message, font=proportional(SINCLAIR_FONT), fill="white
     with canvas(device) as draw:
         text(draw, (0, 0), message, font=font, fill=fill)
 
-def show_message_with_callback(device, message, font=proportional(SINCLAIR_FONT), fill="white", scroll_delay=0.01, callback=None):
+def show_message_with_callback(device, message, font=proportional(SINCLAIR_FONT), fill="white", callback=None):
     message = message + "              "
     text_width = sum(len(font[ord(c)]) for c in message)
     virt = viewport(device, width=text_width, height=device.height)
@@ -152,17 +156,17 @@ def show_message_with_callback(device, message, font=proportional(SINCLAIR_FONT)
             if callback() != KEYSTATE.NO_KEY:
                 break
 
-        if scroll_delay > 0:
-            time.sleep(scroll_delay)
+        if configurazione["velocita"] > 0:
+            time.sleep(configurazione["velocita"])
 
-def animotion(buf, draw, destX, destY, speed=0.1, reverse = False):
+def animotion(buf, draw, destX, destY, reverse = False):
     if reverse:
         curX = destX
         curY = destY
         while curY < 7:
             set_pixel(d7219, buf, draw, curX, curY, False)
-            if speed > 0:
-                time.sleep(speed)
+            if configurazione["animazione"] > 0:
+                time.sleep(configurazione["animazione"])
             curY = curY + 1
             set_pixel(d7219, buf, draw, curX, curY, True)
             if checkKey() != KEYSTATE.NO_KEY:
@@ -170,8 +174,8 @@ def animotion(buf, draw, destX, destY, speed=0.1, reverse = False):
 
         while curX < 31:
             set_pixel(d7219, buf, draw, curX, curY, False)
-            if speed > 0:
-                time.sleep(speed)
+            if configurazione["animazione"] > 0:
+                time.sleep(configurazione["animazione"])
             curX = curX + 1
             set_pixel(d7219, buf, draw, curX, curY, True)
             if checkKey() != KEYSTATE.NO_KEY:
@@ -184,8 +188,8 @@ def animotion(buf, draw, destX, destY, speed=0.1, reverse = False):
         curY = 7
         while curX > destX:
             set_pixel(d7219, buf, draw, curX, curY, True)
-            if speed > 0:
-                time.sleep(speed)
+            if configurazione["animazione"] > 0:
+                time.sleep(configurazione["animazione"])
             set_pixel(d7219, buf, draw, curX, curY, False)
             curX = curX - 1
             if checkKey() != KEYSTATE.NO_KEY:
@@ -193,8 +197,8 @@ def animotion(buf, draw, destX, destY, speed=0.1, reverse = False):
 
         while curY > destY:
             set_pixel(d7219, buf, draw, curX, curY, True)
-            if speed > 0:
-                time.sleep(speed)
+            if configurazione["animazione"] > 0:
+                time.sleep(configurazione["animazione"])
             set_pixel(d7219, buf, draw, curX, curY, False)
             curY = curY - 1
             if checkKey() != KEYSTATE.NO_KEY:
@@ -207,7 +211,7 @@ def set_pixel(device, buf, draw, x, y, on=True):
     draw.point((x, y), fill="white" if on else "black")
     device.display(buf)    # instantly pushes the whole image
 
-def thexor(speed=0.1):
+def thexor():
     buf = Image.new('1', (d7219.width, d7219.height))
     draw = ImageDraw.Draw(buf)
 
@@ -219,7 +223,7 @@ def thexor(speed=0.1):
          (27,0),(27,1),(27,2),(27,3),(27,4),(27,5),(27,6),(28,0),(28,3),(29,0),(29,3),(29,4),(30,0),(30,3),(30,5),(31,1),(31,2),(31,6) #R
     ]
     for t in coords:
-       if animotion(buf, draw, t[0], t[1], speed, False):
+       if animotion(buf, draw, t[0], t[1], False):
           return True
 
     now = time.time()
@@ -229,7 +233,7 @@ def thexor(speed=0.1):
 
     coords.reverse()
     for t in coords:
-       if animotion(buf, draw, t[0], t[1], speed, True):
+       if animotion(buf, draw, t[0], t[1], True):
           return True
 
     return False
